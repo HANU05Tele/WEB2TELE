@@ -29,6 +29,8 @@ jobs:
         unzip ngrok-stable-linux-amd64.zip
         chmod +x ngrok
         sudo mv ngrok /usr/local/bin/
+        ngrok authtoken "${{ secrets.cr_2tJKtVK9ibLRoAKB0UmcgcIx9TS }}"
+
 
     - name: Start Ngrok and Flask App
       run: |
