@@ -1,0 +1,7 @@
+flask
+requests
+werkzeug
+telethon
+tqdm
+python-dotenv
+asyncio

@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hanu Video Compressor</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+        .container {
+            max-width: 600px;
+            margin: auto;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+        }
+        progress {
+            width: 100%;
+            height: 20px;
+            transition: value 0.2s ease-out;
+        }
+        .background-video {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: -1;
+            filter: blur(5px);
+        }
+        .progress-container {
+            display: none;
+            margin-top: 10px;
+        }
+        .dark-mode {
+            background: #121212;
+            color: #ffffff;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            width: 500px;
+            margin: 50px auto;
+            transition: background 0.3s, color 0.3s;
+            position: relative;
+            z-index: 1;
+        }
+        .dark-mode .container {
+            background: rgba(30, 30, 30, 0.9);
+            color: #ffffff;
+        }
+        button {
+            padding: 10px 15px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        #darkModeToggle {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: #222;
+            color: white;
+        }
+        #queueStatus {
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        #currentFile {
+            margin-top: 10px;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+
+    <video class="background-video" autoplay muted loop playsinline>
+        <source src="static/background.mp4" type="video/mp4">
+    </video>
+
+    <button id="darkModeToggle">Toggle Dark Mode</button>
+
+    <div class="container">
+        <h2>Hanu Video Compressor</h2>
+
+        <form id="uploadForm" enctype="multipart/form-data">
+            <label>Select Videos:</label>
+            <input type="file" name="video" multiple required><br><br>
+
+            <label>Resolution:</label>
+            <select name="resolution">
+                <option value="720x480">480p</option>
+                <option value="1280x720">720p</option>
+                <option value="1920x1080">1080p</option>
+                <option value="3840x2160">4k</option>
+            </select>
+
+            <label>Quality (CRF):</label>
+            <input type="number" name="crf" value="27" min="18" max="30">
+
+            <label>Codec:</label>
+            <select name="codec">
+                <option value="libx264">H.264</option>
+                <option value="libx265">H.265</option>
+                <option value="libvpx-vp9">Vp9</option>
+            </select>
+
+            <button type="submit">Compress & Upload Videos</button>
+        </form>
+
+        <div id="uploadProgress" class="progress-container">
+            <p>Uploading to Telegram: <span id="uploadText">0%</span></p>
+            <progress id="uploadBar" value="0" max="100"></progress>
+        </div>
+
+        <div id="compressProgress" class="progress-container">
+            <p>Compressing: <span id="compressText">0%</span></p>
+            <progress id="compressBar" value="0" max="100"></progress>
+        </div>
+
+        <div id="queueStatus">Queue: 0 files waiting</div>
+        <div id="currentFile">Current File: None</div>
+    </div>
+
+    <script>
+        document.getElementById("darkModeToggle").addEventListener("click", function () {
+            document.body.classList.toggle("dark-mode");
+        });
+
+        $(document).ready(function () {
+            $("#uploadForm").submit(function (e) {
+                e.preventDefault();
+                let formData = new FormData(this);
+                let files = $("#uploadForm input[name='video']")[0].files;
+                let queueSize = files.length;
+
+                $("#uploadProgress").hide();
+                $("#compressProgress").show();
+                $("#compressBar").val(0);
+                $("#compressText").text("0%");
+                $("#queueStatus").text(`Queue: ${queueSize} files waiting`);
+                $("#currentFile").text("Current File: None");
+
+                $.ajax({
+                    url: "/upload",
+                    type: "POST",
+                    data: formData,
+                    contentType: false,
+                    processData: false,
+                    xhr: function () {
+                        let xhr = new window.XMLHttpRequest();
+                        xhr.upload.addEventListener("progress", function (evt) {
+                            if (evt.lengthComputable) {
+                                let percentComplete = Math.round((evt.loaded / evt.total) * 100);
+                                $("#uploadBar").val(percentComplete);
+                                $("#uploadText").text(percentComplete + "%");
+                            }
+                        }, false);
+                        return xhr;
+                    },
+                    success: function (response) {
+                        $("#uploadText").text("Upload Complete!");
+                        let processed = 0;
+                        let currentIndex = 0;
+
+                        function processNextFile() {
+                            if (currentIndex < response.length) {
+                                let file = response[currentIndex];
+                                $("#currentFile").text(`Current File: ${file.filename}`);
+                                trackProgress(file.filename, file.compressed_filename, queueSize, () => {
+                                    processed++;
+                                    currentIndex++;
+                                    $("#queueStatus").text(`Queue: ${queueSize - processed} files waiting`);
+                                    processNextFile();
+                                });
+                            } else {
+                                $("#currentFile").text("Current File: None");
+                            }
+                        }
+
+                        processNextFile();
+                    }
+                });
+            });
+
+            function trackProgress(filename, compressedFilename, totalFiles, onComplete) {
+                let compressInterval = setInterval(() => {
+                    $.get("/progress/" + filename, function (data) {
+                        let compressProgress = data.compression;
+                        $("#compressBar").val(compressProgress);
+                        $("#compressText").text(compressProgress + "%");
+
+                        if (compressProgress >= 100) {
+                            clearInterval(compressInterval);
+                            $("#compressText").text("Compression Complete!");
+                            $("#compressProgress").hide();
+
+                            $("#uploadProgress").show();
+                            $("#uploadBar").val(0);
+                            $("#uploadText").text("0%");
+
+                            let uploadInterval = setInterval(() => {
+                                $.get("/progress/" + compressedFilename, function (data) {
+                                    let uploadProgress = data.upload;
+                                    $("#uploadBar").val(uploadProgress);
+                                    $("#uploadText").text(uploadProgress + "%");
+
+                                    if (uploadProgress >= 100) {
+                                        clearInterval(uploadInterval);
+                                        $("#uploadText").text("Upload Complete!");
+                                        $("#uploadProgress").hide();
+                                        onComplete();
+                                    } else if (uploadProgress === -1) {
+                                        clearInterval(uploadInterval);
+                                        $("#uploadText").text("Upload Failed!");
+                                        $("#uploadProgress").hide();
+                                        onComplete();
+                                    }
+                                }).fail(function () {
+                                    clearInterval(uploadInterval);
+                                    $("#uploadText").text("Error fetching upload progress!");
+                                    $("#uploadProgress").hide();
+                                    onComplete();
+                                });
+                            }, 500); // Adjusted polling interval for upload
+                        }
+                    }).fail(function () {
+                        clearInterval(compressInterval);
+                        $("#compressText").text("Error fetching compression progress!");
+                        $("#compressProgress").hide();
+                        onComplete();
+                    });
+                }, 500); // Adjusted polling interval for compression
+            }
+        });
+    </script>
+</body>
+</html>
