@@ -50,5 +50,5 @@ This project is for educational purposes only.
 
 ---
 
-Made with ❤️ by **[Your Name]**  
+Made with ❤️ by **[HANU]**  
 
