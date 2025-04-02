@@ -31,7 +31,7 @@ jobs:
 
       - name: Run Flask App
         run: |
-          nohup python WEB TO TELE MAIN/Compress.py &
+          nohup python "WEB TO TELE MAIN/Compress.py" &
 
       - name: Start Ngrok Tunnel
         run: |
