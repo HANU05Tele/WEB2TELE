@@ -1,7 +1,6 @@
 name: Run Flask with Ngrok
 
 on: push
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
