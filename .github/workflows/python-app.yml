@@ -1,36 +1,47 @@
-name: Deploy Flask App
+name: Flask App Deployment
 
 on:
   push:
     branches:
-      - main  # Change if your branch is different
-  pull_request:
-    branches:
-      - main
+      - main  # Change this if your branch name is different
+  workflow_dispatch:  # Allows manual triggering
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v3
 
-      - name: Set up Python
+      - name: Set Up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.11'  # Match with your script's version
+          python-version: '3.9'  # Change if needed
 
       - name: Install Dependencies
         run: |
-          python -m pip install --upgrade pip
           pip install -r requirements.txt  # Ensure this file exists
 
-      - name: Run Flask App
-        env:
-          API_ID: ${{ secrets.API_ID }}
-          API_HASH: ${{ secrets.API_HASH }}
-          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
-          CHAT_ID: ${{ secrets.CHAT_ID }}
+      - name: Install ngrok
         run: |
-          python 'WEB TO TELE MAIN/Compress.py'
+          curl -s https://ngrok-agent.s3.amazonaws.com/ngrok.asc | tee /etc/apt/trusted.gpg.d/ngrok.asc
+          echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | tee /etc/apt/sources.list.d/ngrok.list
+          sudo apt update && sudo apt install ngrok
+
+      - name: Start Flask App
+        run: |
+          python 'WEB TO TELE MAIN/Compress.py' &  # Run Flask in the background
+          sleep 5  # Wait for the server to start
+
+      - name: Start ngrok and Expose Port
+        run: |
+          ngrok http 5000 > /dev/null &
+          sleep 5  # Give ngrok time to start
+
+      - name: Get ngrok URL
+        run: |
+          curl -s http://localhost:4040/api/tunnels | jq -r '.tunnels[0].public_url'
+
+      - name: Keep Process Running
+        run: tail -f /dev/null  # Prevents GitHub Actions from stopping
