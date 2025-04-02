@@ -23,4 +23,4 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
       - name: Run the Script
-        run: python 'WEB TO TELE MAIN/compress.py'
+        run: python 'WEB TO TELE MAIN/Compress.py'
