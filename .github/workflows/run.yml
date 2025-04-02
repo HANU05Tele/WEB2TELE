@@ -1,26 +1,36 @@
-name: Run Script on GitHub
+name: Deploy Flask App
 
 on:
-  schedule:
-    - cron: "0 * * * *"  # Runs every hour
-  workflow_dispatch:  # Allows manual trigger
+  push:
+    branches:
+      - main  # Change if your branch is different
+  pull_request:
+    branches:
+      - main
 
 jobs:
-  run-bot:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v3
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: 3.11
+          python-version: '3.11'  # Match with your script's version
 
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-      - name: Run the Script
-        run: python 'WEB TO TELE MAIN/Compress.py'
+          pip install -r requirements.txt  # Ensure this file exists
+
+      - name: Run Flask App
+        env:
+          API_ID: ${{ secrets.API_ID }}
+          API_HASH: ${{ secrets.API_HASH }}
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.CHAT_ID }}
+        run: |
+          python 'WEB TO TELE MAIN/Compress.py'
