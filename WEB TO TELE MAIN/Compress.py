@@ -6,15 +6,13 @@ import re
 import asyncio
 from werkzeug.utils import secure_filename
 from telethon import TelegramClient
-from telethon.sessions import StringSession  # For in-memory session
-from tqdm import tqdm  # Added for smooth progress bar
-from queue import Queue  # Added for queue support
-import time  # Added for timing
+from telethon.sessions import StringSession
+from queue import Queue
+import time
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500 MB Limit
 
-# Folder Configurations
 UPLOAD_FOLDER = 'uploads'
 COMPRESSED_FOLDER = 'compressed'
 OVERLAY_IMAGE = 'overlay.png'
@@ -30,23 +28,21 @@ progress_lock = Lock()  # Lock to ensure thread-safe updates
 task_queue = Queue()  # Queue for sequential processing
 
 # Telegram API credentials
-API_ID = "18243234"  # Replace with your API_ID
-API_HASH = "46af394088cc0a920cf3f41f5991eed0"  # Replace with your API_HASH
-BOT_TOKEN = "6212871672:AAEA5KiA6yTFwv75TzJCl2db7---dEsAqys"
-CHAT_ID = -1001708633832  # Integer chat ID
+API_ID = os.getenv("API_ID", "")
+API_HASH = os.getenv("API_HASH", "")
+BOT_TOKEN = os.getenv("BOT_TOKEN", "")
+CHAT_ID = int(os.getenv("CHAT_ID", "-100123456789"))  # Replace with actual Chat ID
 
-# Initialize Telethon Client with an in-memory session and single loop
 client = TelegramClient(StringSession(), API_ID, API_HASH)
-loop = asyncio.new_event_loop()  # Create a new event loop
-asyncio.set_event_loop(loop)     # Set it as the current loop
 
-# Start the client once at startup
+loop = asyncio.new_event_loop()
+asyncio.set_event_loop(loop)
+
 async def start_client():
     await client.start(bot_token=BOT_TOKEN)
-    print("Telegram client started successfully!")
+    print("✅ Telegram client started!")
 
 loop.run_until_complete(start_client())
-
 async def send_large_file(filepath, filename, original_filepath, compress_time, download_time):
     global upload_progress
     print(f"🚀 Uploading {filename} to Telegram...")
